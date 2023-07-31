@@ -1,0 +1,12 @@
+torch>=1.6.0
+torchvision>=0.7.0
+numpy
+tqdm
+pillow
+tensorboard
+transformers
+xformers
+datasets
+evaluate
+seqeval
+
