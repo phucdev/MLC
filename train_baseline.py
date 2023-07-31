@@ -71,7 +71,7 @@ def main(arguments):
         learning_rate=3e-5,
         per_device_train_batch_size=arguments.batch_size,
         per_device_eval_batch_size=arguments.batch_size,
-        num_train_epochs=args.num_epochs,
+        num_train_epochs=args.epochs,
         save_strategy="no"
     )
 
@@ -153,7 +153,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Baseline training')
     parser.add_argument('--dataset', type=str, default='conll2003', help='dataset name')
     parser.add_argument('--batch_size', default=8, type=int, help='batch size')
-    parser.add_argument('--num_epochs', default=5, type=int, help='Number of epochs')
+    parser.add_argument('--epochs', default=5, type=int, help='Number of epochs')
     parser.add_argument('--corruption_prob', default=0.0, type=float,
                         help='Corruption probability for label noise')
     parser.add_argument('--configuration', default="NoisyNER_labelset1", type=str,
