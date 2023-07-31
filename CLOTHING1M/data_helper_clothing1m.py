@@ -36,7 +36,7 @@ def prepare_data(args):
     silver_sampler = None
     val_sampler = None
     test_sampler = None
-    batch_size = args.bs
+    batch_size = args.batch_size
         
     train_gold_loader = DataIterator(torch.utils.data.DataLoader(train_data_gold,   batch_size=batch_size, shuffle=(gold_sampler is None),
                                                                  num_workers=args.prefetch, pin_memory=True, sampler=gold_sampler))

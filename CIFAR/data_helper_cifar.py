@@ -8,17 +8,20 @@ import numpy as np
 from PIL import Image
 from utils import DataIterator
 
+
 def prepare_data(gold_fraction, corruption_prob, corruption_type, args):
+    # NOTE: CIFAR10, CIFAR100 always use the mwnet_loader
     if args.use_mwnet_loader:
         return prepare_data_mwnet(gold_fraction, corruption_prob, corruption_type, args)
     else:
         return prepare_data_mlc(gold_fraction, corruption_prob, corruption_type, args)
 
+
 def prepare_data_mwnet(gold_fraction, corruption_prob, corruption_type, args):
-    from load_corrupted_data_mlg import CIFAR10, CIFAR100    
+    from load_corrupted_data_mlg import CIFAR10, CIFAR100
     normalize = transforms.Normalize(mean=[x / 255.0 for x in [125.3, 123.0, 113.9]],
                                      std=[x / 255.0 for x in [63.0, 62.1, 66.7]])
-    if True: # no augment as used by mwnet
+    if True:  # no augment as used by mwnet
         train_transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Lambda(lambda x: F.pad(x.unsqueeze(0),
@@ -39,14 +42,17 @@ def prepare_data_mwnet(gold_fraction, corruption_prob, corruption_type, args):
         normalize
     ])
 
+    # there are 50000 training examples in CIFAR10/CIFAR100
     args.num_meta = int(50000 * gold_fraction)
 
     if args.dataset == 'cifar10':
         num_classes = 10
-        
+
         train_data_meta = CIFAR10(
             root=args.data_path, train=True, meta=True, num_meta=args.num_meta, corruption_prob=corruption_prob,
             corruption_type=args.corruption_type, transform=train_transform, download=True)
+        # basically performs the same stuff, but this time around take the training portion, perform corruption
+        # seed should ensure that the clean data for the metamodel and the noisy data for the main model do not overlap
         train_data = CIFAR10(
             root=args.data_path, train=True, meta=False, num_meta=args.num_meta, corruption_prob=corruption_prob,
             corruption_type=args.corruption_type, transform=train_transform, download=True, seed=args.seed)
@@ -58,7 +64,7 @@ def prepare_data_mwnet(gold_fraction, corruption_prob, corruption_type, args):
 
     elif args.dataset == 'cifar100':
         num_classes = 100
-        
+
         train_data_meta = CIFAR100(
             root=args.data_path, train=True, meta=True, num_meta=args.num_meta, corruption_prob=corruption_prob,
             corruption_type=args.corruption_type, transform=train_transform, download=True)
@@ -69,22 +75,25 @@ def prepare_data_mwnet(gold_fraction, corruption_prob, corruption_type, args):
 
         valid_data = CIFAR100(
             root=args.data_path, train=True, meta=True, num_meta=args.num_meta, corruption_prob=corruption_prob,
-            corruption_type=args.corruption_type, transform=train_transform, download=True)        
+            corruption_type=args.corruption_type, transform=train_transform, download=True)
 
-    train_gold_loader = DataIterator(torch.utils.data.DataLoader(train_data_meta, batch_size=args.bs, shuffle=True,
-        num_workers=args.prefetch, pin_memory=True))
-    train_silver_loader = torch.utils.data.DataLoader(train_data, batch_size=args.bs, shuffle=True,
-        num_workers=args.prefetch, pin_memory=True)
-    valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=args.bs, shuffle=True,
-        num_workers=args.prefetch, pin_memory=True)
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size=args.bs, shuffle=False,
+    train_gold_loader = DataIterator(torch.utils.data.DataLoader(train_data_meta, batch_size=args.batch_size, shuffle=True,
+                                                                 num_workers=args.prefetch, pin_memory=True))
+    train_silver_loader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True,
+                                                      num_workers=args.prefetch, pin_memory=True)
+    valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=args.batch_size, shuffle=True,
+                                               num_workers=args.prefetch, pin_memory=True)
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=args.batch_size, shuffle=False,
                                               num_workers=args.prefetch, pin_memory=True)
 
     return train_gold_loader, train_silver_loader, valid_loader, test_loader, num_classes
 
+
+# NOTE: this function is not used
 def prepare_data_mlc(gold_fraction, corruption_prob, corruption_type, args):
-    from load_corrupted_data import CIFAR10, CIFAR100
-        
+    # NOTE there is no load_corrupted_data module
+    from load_corrupted_data_mlg import CIFAR10, CIFAR100
+
     mean = [x / 255 for x in [125.3, 123.0, 113.9]]
     std = [x / 255 for x in [63.0, 62.1, 66.7]]
 
@@ -101,11 +110,14 @@ def prepare_data_mlc(gold_fraction, corruption_prob, corruption_type, args):
             transform=train_transform, download=True, distinguish_gold=False, seed=args.seed)
         train_data_silver = CIFAR10(
             args.data_path, True, False, gold_fraction, corruption_prob, args.corruption_type,
-            transform=train_transform, download=True, shuffle_indices=train_data_gold.shuffle_indices, seed=args.seed, distinguish_gold=False, weaklabel=args.weaklabel) # note here for the change
+            transform=train_transform, download=True, shuffle_indices=train_data_gold.shuffle_indices, seed=args.seed,
+            distinguish_gold=False, weaklabel=args.weaklabel)  # note here for the change
         train_data_gold_deterministic = CIFAR10(
             args.data_path, True, True, gold_fraction, corruption_prob, args.corruption_type,
-            transform=test_transform, download=True, shuffle_indices=train_data_gold.shuffle_indices, distinguish_gold=False, seed=args.seed)
-        test_data = CIFAR10(args.data_path, train=False, transform=test_transform, download=True, distinguish_gold=False, seed=args.seed)
+            transform=test_transform, download=True, shuffle_indices=train_data_gold.shuffle_indices,
+            distinguish_gold=False, seed=args.seed)
+        test_data = CIFAR10(args.data_path, train=False, transform=test_transform, download=True,
+                            distinguish_gold=False, seed=args.seed)
 
         # same as gold
         valid_data = CIFAR10(
@@ -120,34 +132,38 @@ def prepare_data_mlc(gold_fraction, corruption_prob, corruption_type, args):
             transform=train_transform, download=True, distinguish_gold=False, seed=args.seed)
         train_data_silver = CIFAR100(
             args.data_path, True, False, gold_fraction, corruption_prob, args.corruption_type,
-            transform=train_transform, download=True, shuffle_indices=train_data_gold.shuffle_indices, seed=args.seed, distinguish_gold=False,
-            weaklabel=args.weaklabel) # note the weaklabel arg
+            transform=train_transform, download=True, shuffle_indices=train_data_gold.shuffle_indices, seed=args.seed,
+            distinguish_gold=False,
+            weaklabel=args.weaklabel)  # note the weaklabel arg
         train_data_gold_deterministic = CIFAR100(
             args.data_path, True, True, gold_fraction, corruption_prob, args.corruption_type,
-            transform=test_transform, download=True, shuffle_indices=train_data_gold.shuffle_indices, distinguish_gold=False, seed=args.seed)
-        test_data = CIFAR100(args.data_path, train=False, transform=test_transform, download=True, distinguish_gold=False, seed=args.seed)
+            transform=test_transform, download=True, shuffle_indices=train_data_gold.shuffle_indices,
+            distinguish_gold=False, seed=args.seed)
+        test_data = CIFAR100(args.data_path, train=False, transform=test_transform, download=True,
+                             distinguish_gold=False, seed=args.seed)
 
         # same as gold
         valid_data = CIFAR100(
             args.data_path, True, True, gold_fraction, corruption_prob, args.corruption_type,
             transform=train_transform, download=True, distinguish_gold=False, seed=args.seed)
-        
-        num_classes = 100
 
+        num_classes = 100
 
     gold_sampler = None
     silver_sampler = None
     valid_sampler = None
     test_sampler = None
-    batch_size = args.bs
-        
+    batch_size = args.batch_size
+
     train_gold_loader = DataIterator(torch.utils.data.DataLoader(
-        train_data_gold,   batch_size=batch_size, shuffle=(gold_sampler is None),
+        train_data_gold, batch_size=batch_size, shuffle=(gold_sampler is None),
         num_workers=args.prefetch, pin_memory=True, sampler=gold_sampler))
-    train_silver_loader =torch.utils.data.DataLoader(
+    train_silver_loader = torch.utils.data.DataLoader(
         train_data_silver, batch_size=batch_size, shuffle=(silver_sampler is None),
         num_workers=args.prefetch, pin_memory=True, sampler=silver_sampler)
-    valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=batch_size, shuffle=(valid_sampler is None), num_workers=args.prefetch, pin_memory=True, sampler=valid_sampler)
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, shuffle=(test_sampler is None), num_workers=args.prefetch, pin_memory=True, sampler=test_sampler)
+    valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=batch_size, shuffle=(valid_sampler is None),
+                                               num_workers=args.prefetch, pin_memory=True, sampler=valid_sampler)
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, shuffle=(test_sampler is None),
+                                              num_workers=args.prefetch, pin_memory=True, sampler=test_sampler)
 
     return train_gold_loader, train_silver_loader, valid_loader, test_loader, num_classes

@@ -16,17 +16,17 @@ import torchvision.transforms as transforms
 
 
 def uniform_mix_C(mixing_ratio, num_classes):
-    '''
+    """
     returns a linear interpolation of a uniform matrix and an identity matrix
-    '''
+    """
     return mixing_ratio * np.full((num_classes, num_classes), 1 / num_classes) + \
         (1 - mixing_ratio) * np.eye(num_classes)
 
 def flip_labels_C(corruption_prob, num_classes, seed=1):
-    '''
+    """
     returns a matrix with (1 - corruption_prob) on the diagonals, and corruption_prob
     concentrated in only one other entry for each row
-    '''
+    """
     np.random.seed(seed)
     C = np.eye(num_classes) * (1 - corruption_prob)
     row_indices = np.arange(num_classes)
@@ -35,10 +35,10 @@ def flip_labels_C(corruption_prob, num_classes, seed=1):
     return C
 
 def flip_labels_C_two(corruption_prob, num_classes, seed=1):
-    '''
+    """
     returns a matrix with (1 - corruption_prob) on the diagonals, and corruption_prob
     concentrated in only one other entry for each row
-    '''
+    """
     np.random.seed(seed)
     C = np.eye(num_classes) * (1 - corruption_prob)
     row_indices = np.arange(num_classes)
@@ -96,25 +96,29 @@ class CIFAR10(data.Dataset):
                 else:
                     entry = pickle.load(fo, encoding='latin1')
                 self.train_data.append(entry['data'])
+                # entry had 'batch_label', 'labels' (list: 10000), 'data' (ndarray: (10000, 3072)), 'filenames' props
                 if 'labels' in entry:
                     self.train_labels += entry['labels']
-                    img_num_list = [int(self.num_meta/10)] * 10
                     num_classes = 10
+                    # number of examples per class, sums up to self.num_meta
+                    img_num_list = [int(self.num_meta/num_classes)] * num_classes
                 else:
                     self.train_labels += entry['fine_labels']
                     self.train_coarse_labels += entry['coarse_labels']
-                    img_num_list = [int(self.num_meta/100)] * 100
                     num_classes = 100
+                    # number of examples per class, sums up to self.num_meta
+                    img_num_list = [int(self.num_meta/num_classes)] * num_classes
+
                 fo.close()
 
             self.train_data = np.concatenate(self.train_data)
             self.train_data = self.train_data.reshape((50000, 3, 32, 32))
             self.train_data = self.train_data.transpose((0, 2, 3, 1))   # convert to HWC
 
+            # list of image ids per class
             data_list_val = {}
             for j in range(num_classes):
                 data_list_val[j] = [i for i, label in enumerate(self.train_labels) if label == j]
-
 
             idx_to_meta = []
             idx_to_train = []
@@ -125,7 +129,6 @@ class CIFAR10(data.Dataset):
                 img_num = img_num_list[int(cls_idx)]
                 idx_to_meta.extend(img_id_list[:img_num])
                 idx_to_train.extend(img_id_list[img_num:])
-
 
             if meta is True:
                 self.train_data = self.train_data[idx_to_meta]

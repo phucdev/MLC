@@ -16,6 +16,7 @@ class MetaNet(nn.Module):
 
         in_dim = hx_dim + cls_dim
 
+        # skip: Skip link for LCN (default: False)
         self.net = nn.Sequential(
             nn.Linear(in_dim, self.hdim),
             nn.Tanh(),
@@ -31,7 +32,7 @@ class MetaNet(nn.Module):
         self.init_weights()
 
         if self.args.tie:
-            print ('Tying cls emb to output cls weight')
+            print('Tying cls emb to output cls weight')
             self.net[-1].weight = self.cls_emb.weight
         
     def init_weights(self):
@@ -53,7 +54,11 @@ class MetaNet(nn.Module):
     def forward(self, hx, y):
         bs = hx.size(0)
 
-        y_emb = self.cls_emb(y)
+        # class embedding for noisy label y, concatenate with hx (feature representation from the main model)
+        # NER: y contains -100 label ids for special tokens which we have to filter out/ turn to 0 otherwise we will get
+        # index out of bounds/ device side asserts when we try to feed y into the embedding layer
+        mask = y != -100
+        y_emb = self.cls_emb(y*mask)
         hin = torch.cat([hx, y_emb], dim=-1)
 
         logit = self.net(hin)
@@ -64,7 +69,7 @@ class MetaNet(nn.Module):
             logit = logit[:, :self.num_classes]
 
         if self.args.sparsemax:
-            out = self.sparsemax(logit) # test sparsemax
+            out = self.sparsemax(logit)  # test sparsemax
         else:
             out = F.softmax(logit, -1)
 
