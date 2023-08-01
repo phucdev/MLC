@@ -111,6 +111,15 @@ model quickly overfits on the corrupted training data, while the MLC model is st
 Keep in mind though that I have not tried to optimize the hyperparameters for the MLC model, and perhaps it needs to be
 trained for even more epochs.
 
+The results on the real word noise dataset (NoisyNER) seem to be promising though. The MLC model based on EstBERT had a
+micro F1 of 0.71 on the test set after training for 30 epochs, while the baseline model only had a micro F1 of 0.63 
+after training for 5 epochs.
+
+#### Potential next steps
+- Do hyperparameter search for MLC models to find better hyperparameters for the main model and the meta model
+- Use proper learning rate scheduler for the NLP tasks. The default scheduler for datasets that are not cifar-10, 
+- cifar-100 or clothing-1m in the MLC code is a `DummyScheduler` in `mlc_utils.py`.
+
 ## Citation
 
 If you find MLC useful, please cite the following paper

@@ -3,6 +3,9 @@ import copy
 import sys
 import argparse
 import os
+
+import transformers
+
 from logger import get_logger
 from tqdm import tqdm
 from collections import deque
@@ -97,7 +100,7 @@ def build_models(dataset, num_classes):
     return main_net, meta_net
 
 
-def setup_training(main_net, meta_net, exp_id=None):
+def setup_training(main_net, meta_net, train_iterations):
     # ============== setting up from scratch ===================
     # set up optimizers and schedulers
     # meta net optimizer
@@ -114,12 +117,18 @@ def setup_training(main_net, meta_net, exp_id=None):
                                     eps=args.opt_eps)
     elif args.optimizer == 'sgd':
         main_opt = torch.optim.SGD(main_params, lr=args.main_lr, weight_decay=args.wdecay, momentum=args.momentum)
+    else:
+        raise NotImplementedError
 
     if args.dataset in ['cifar10', 'cifar100']:
         # follow MW-Net setting
         main_schdlr = torch.optim.lr_scheduler.MultiStepLR(main_opt, milestones=[80, 100], gamma=0.1)
     elif args.dataset in ['clothing1m']:
         main_schdlr = torch.optim.lr_scheduler.MultiStepLR(main_opt, milestones=[5], gamma=0.1)
+    elif args.dataset in ['conll2003', 'noisyner', 'yelp_reviews']:
+        num_train_steps = args.epochs * train_iterations
+        main_schdlr = transformers.get_linear_schedule_with_warmup(main_opt, num_warmup_steps=0,
+                                                                   num_training_steps=num_train_steps)
     else:
         main_schdlr = DummyScheduler(main_opt)
 
@@ -274,7 +283,7 @@ def train_and_test(main_net, meta_net, gold_loader, silver_loader, valid_loader,
     torch.cuda.manual_seed(args.seed)
 
     main_net, meta_net, main_opt, meta_opt, main_schdlr, meta_schdlr, last_epoch = setup_training(main_net, meta_net,
-                                                                                                  exp_id)
+                                                                                                  len(silver_loader))
 
     # //////////////////////// switching on training mode ////////////////////////
     meta_net.train()
