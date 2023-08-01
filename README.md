@@ -100,25 +100,49 @@ After overcoming these problems, I was able to train a model on the CONLL2003 da
 roughly takes 10x longer than training the baseline model using the huggingface transformers library. This is due to
 multiple `backwards()` calls in the MLC algorithm. It also takes a lot of epochs for the meta and main model to learn.
 
-In order to reproduce the text classification results from the paper, I  would need their hyperparameters. 
+In order to reproduce the text classification results from the paper, I would need their hyperparameters. 
 It also does not help that the authors averaged the results over all the noise levels and types. 
 They also say in the paper that for each dataset all the different models are trained for the same number of
-epochs and refer to the repository, but it does not include the relevant information.
+epochs and refer to the repository, but it does not include the relevant information about the hyperparameters or
+number of epochs.
 
 Currently, the results on CONLL2003 are not as good as expected. The transformer based baseline model performs better 
-than the MLC model on most noise levels, when it is trained for just 2 epochs. When training for more epochs the baseline
-model quickly overfits on the corrupted training data, while the MLC model is still able to improve. 
-Keep in mind though that I have not tried to optimize the hyperparameters for the MLC model, and perhaps it needs to be
-trained for even more epochs.
+than the MLC model on most noise levels, when it is trained for just 2 epochs. In fact, the baseline model performs 
+surprisingly well on the corrupted training data. I suspect that this is due to the fact that the transformer model
+is already very powerful and has a good grasp of PERSON, ORG and LOC entities even before training on CONLL2003.
 
-The results on the real word noise dataset (NoisyNER) seem to be promising though. The MLC model based on EstBERT had a
-micro F1 of 0.71 on the test set after training for 30 epochs, while the baseline model only had a micro F1 of 0.63 
-after training for 5 epochs.
+When training for more epochs the baseline model quickly overfits on the corrupted training data, while the MLC model is 
+still able to improve. Keep in mind though that I have not tried to optimize the hyperparameters for the MLC model, and 
+it seems that the MLC model still has room to improve with more training epochs.
+On CONLL2003 with 0.8 corruption probability the MLC model based on DistilBERT had a micro F1 of 0.549 on the test set 
+after training for 15 epochs, compared to a micro F1 of 0.657 after training for 30 epochs.
+
+| Corruption probability | Baseline (2 epochs) | Baseline (5 epochs) | MLC (5 epochs) | MLC (15 epochs) | MLC (30 epochs) |
+| ---------------------- | ------------------- | ------------------- | -------------- | --------------- | --------------- |
+| 0.0                    |                     | 0.904               | 0.322          | 0.600           |                 |
+| 0.1                    |                     | 0.887               |                | 0.620           |                 |
+| 0.2                    |                     | 0.882               | 0.439          | 0.657           |                 |
+| 0.3                    |                     | 0.865               |                | 0.653           |                 |
+| 0.4                    |                     | 0.850               |                | 0.609           |                 |
+| 0.5                    |                     | 0.814               |                | 0.592           |                 |
+| 0.6                    |                     | 0.787               | 0.087          | 0.558           |                 |
+| 0.7                    |                     | 0.720               |                | 0.560           |                 |
+| 0.8                    | 0.806               | 0.551               |                | 0.549           | 0.657           |
+| 0.9                    | 0.647               | 0.311               |                | 0.556           |                 |
+
+
+
+The results on the real word noise dataset (NoisyNER with label set 7) seem to be promising though. The MLC model based 
+on EstBERT had a micro F1 of 0.71 on the test set after training for 30 epochs, while the baseline model (also based on EstBERT) only had 
+a micro F1 of 0.63 after training for 5 epochs.
 
 #### Potential next steps
 - Do hyperparameter search for MLC models to find better hyperparameters for the main model and the meta model
-- Use proper learning rate scheduler for the NLP tasks. The default scheduler for datasets that are not cifar-10, 
-- cifar-100 or clothing-1m in the MLC code is a `DummyScheduler` in `mlc_utils.py`.
+- Train the MLC model for more epochs to see if it can improve further
+- Add more datasets to the experiments
+- Make label noise deterministic, so that the results are reproducible
+- Repeat experiments using FLIP noise. Until now, I have used uniform noise, where the corrupted label might also happen 
+to be the original label
 
 ## Citation
 
